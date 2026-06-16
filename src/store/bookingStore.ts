@@ -96,21 +96,71 @@ export const useBookingStore = create<BookingStore>((set) => ({
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bookings' },
-        (payload) => {
+        async (payload) => {
           console.log('[bookingStore] Realtime update diterima:', payload);
           
           if (payload.eventType === 'INSERT') {
             toast.success('Ada pesanan masuk baru!', { icon: '🔔' });
+            
+            // Tunggu sebentar lalu ambil data pesanan BARU ini saja
+            setTimeout(async () => {
+              try {
+                // Gunakan fungsi import manual atau panggil langsung lewat supabase jika getBookingById tidak di-import
+                // Lebih aman menggunakan supabase secara langsung agar tidak perlu merubah import
+                const { data } = await supabase.from('bookings').select('*, services(*)').eq('id', payload.new.id).single();
+                if (data) {
+                  // Karena mapBookingFromDB butuh logic, kita panggil secara manual:
+                  const service = data.services || {};
+                  const newBooking = {
+                    id: data.id,
+                    bookingCode: data.booking_code,
+                    service: {
+                      id: service.id,
+                      name: service.name,
+                      description: service.description,
+                      price: service.price,
+                      duration: service.duration,
+                      category: service.category,
+                      imageUrl: service.image_url,
+                      isActive: service.is_active,
+                    },
+                    customer: {
+                      name: data.customer_name,
+                      phone: data.customer_phone,
+                      email: data.customer_email || undefined,
+                    },
+                    date: data.date,
+                    time: data.time,
+                    status: data.status,
+                    notes: data.notes || undefined,
+                    createdAt: data.created_at,
+                  };
+                  
+                  // Masukkan langsung ke urutan teratas!
+                  set(state => {
+                    // Cegah duplikasi jika tiba-tiba sudah ada
+                    if (state.bookings.some(b => b.id === newBooking.id)) return state;
+                    return { bookings: [newBooking, ...state.bookings] };
+                  });
+                }
+              } catch (e) {
+                console.error("Error fetching single booking:", e);
+              }
+            }, 1000);
+
           } else if (payload.eventType === 'UPDATE') {
             toast.success('Status pesanan diperbarui!', { icon: '📝' });
+            // Langsung ubah datanya secara instan di memori (Super Cepat!)
+            set(state => ({
+              bookings: state.bookings.map(b => 
+                b.id === payload.new.id ? { ...b, status: payload.new.status } : b
+              )
+            }));
+          } else if (payload.eventType === 'DELETE') {
+            set(state => ({
+              bookings: state.bookings.filter(b => b.id !== payload.old?.id)
+            }));
           }
-
-          // Delay fetchBookings selama 1.5 detik agar database benar-benar selesai commit
-          setTimeout(() => {
-            console.log('[bookingStore] Menjalankan fetchBookings setelah delay...');
-            // Menggunakan getState untuk menjamin referensi terbaru (aman dari HMR)
-            useBookingStore.getState().fetchBookings();
-          }, 1500);
         }
       )
       .subscribe((status) => {

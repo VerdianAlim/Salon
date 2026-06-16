@@ -38,14 +38,18 @@ const BookingHistory: React.FC = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bookings' },
-        () => {
-          // Tambahkan jeda 1.5 detik agar status dari Supabase benar-benar tersimpan sempurna
-          // sebelum kita melakukan fetch ulang (menghindari race condition).
-          setTimeout(() => {
-            getBookingsByPhone(phone.trim()).then(results => {
-              setBookings(results);
-            });
-          }, 1500);
+        (payload) => {
+          if (payload.eventType === 'UPDATE') {
+            // Update instan di memori (Sangat cepat tanpa loading)
+            setBookings(prev => prev.map(b => 
+              b.id === payload.new.id ? { ...b, status: payload.new.status } : b
+            ));
+          } else if (payload.eventType === 'INSERT') {
+            // Jika ada booking baru, fetch ulang
+            setTimeout(() => {
+              getBookingsByPhone(phone.trim()).then(results => setBookings(results));
+            }, 1000);
+          }
         }
       )
       .subscribe();
