@@ -68,45 +68,53 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
   error: null,
 
   fetchBookings: async () => {
+    console.log('[bookingStore] Memulai fetchBookings...');
     set({ isLoading: true, error: null });
     try {
       const data = await getBookings();
+      console.log('[bookingStore] Sukses fetchBookings! Total data:', data.length);
       set({ bookings: data, isLoading: false });
-    } catch {
+    } catch (e: any) {
+      console.error('[bookingStore] Error fetchBookings:', e);
       set({ error: 'Gagal memuat data booking', isLoading: false });
     }
   },
 
   setupRealtime: () => {
-    // Hapus channel lama jika ada (penting untuk mengatasi bug Vite HMR)
     const channelName = 'public:bookings';
     const existingChannel = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`);
+    
+    // Jika channel sudah ada, jangan buat lagi (biarkan yang lama bekerja)
     if (existingChannel) {
-      supabase.removeChannel(existingChannel);
+      console.log('[bookingStore] Channel realtime sudah aktif, mengabaikan pembuatan baru.');
+      return;
     }
 
+    console.log('[bookingStore] Membuat channel realtime baru...');
     supabase
       .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bookings' },
         (payload) => {
-          // Ketika ada perubahan apa pun di Supabase, kita ambil ulang datanya
-          // agar relasi (service & customer) ter-fetch utuh lewat query getBookings().
-          console.log('Realtime update received:', payload);
+          console.log('[bookingStore] Realtime update diterima:', payload);
           
           if (payload.eventType === 'INSERT') {
             toast.success('Ada pesanan masuk baru!', { icon: '🔔' });
+          } else if (payload.eventType === 'UPDATE') {
+            toast.success('Status pesanan diperbarui!', { icon: '📝' });
           }
 
-          // Delay fetchBookings selama 1 detik.
-          // Ini mengatasi "race condition" dimana notifikasi Realtime datang lebih cepat 
-          // sebelum database API server (PostgREST) selesai memperbarui cache bacaannya.
+          // Delay fetchBookings selama 1.5 detik agar database benar-benar selesai commit
           setTimeout(() => {
-            get().fetchBookings();
-          }, 1000);
+            console.log('[bookingStore] Menjalankan fetchBookings setelah delay...');
+            // Menggunakan getState untuk menjamin referensi terbaru (aman dari HMR)
+            useBookingStore.getState().fetchBookings();
+          }, 1500);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[bookingStore] Status berlangganan Realtime:', status);
+      });
   },
 }));

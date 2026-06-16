@@ -39,11 +39,13 @@ const BookingHistory: React.FC = () => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bookings' },
         () => {
-          // Jika ada perubahan apa pun di tabel bookings,
-          // kita ambil ulang data terbaru berdasarkan nomor HP
-          getBookingsByPhone(phone.trim()).then(results => {
-            setBookings(results);
-          });
+          // Tambahkan jeda 1.5 detik agar status dari Supabase benar-benar tersimpan sempurna
+          // sebelum kita melakukan fetch ulang (menghindari race condition).
+          setTimeout(() => {
+            getBookingsByPhone(phone.trim()).then(results => {
+              setBookings(results);
+            });
+          }, 1500);
         }
       )
       .subscribe();
