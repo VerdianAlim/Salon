@@ -18,7 +18,9 @@ const mapBookingFromDB = async (data: any): Promise<Booking> => {
   // Ambil detail layanan (karena di tabel bookings hanya menyimpan service_id)
   let service = data.services;
   if (!service) {
-    service = await getServiceById(data.service_id);
+    if (data.service_id) {
+      service = await getServiceById(data.service_id);
+    }
   } else {
     // Jika data di-join
     service = {
@@ -30,6 +32,18 @@ const mapBookingFromDB = async (data: any): Promise<Booking> => {
       category: service.category,
       imageUrl: service.image_url,
       isActive: service.is_active,
+    };
+  }
+
+  // Fallback data jika service benar-benar dihapus/null
+  if (!service) {
+    service = {
+      id: 'deleted',
+      name: 'Layanan Telah Dihapus',
+      price: 0,
+      duration: 0,
+      category: 'Lainnya',
+      isActive: false,
     };
   }
 
