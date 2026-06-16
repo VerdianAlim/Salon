@@ -94,11 +94,17 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
           // Ketika ada perubahan apa pun di Supabase, kita ambil ulang datanya
           // agar relasi (service & customer) ter-fetch utuh lewat query getBookings().
           console.log('Realtime update received:', payload);
-          get().fetchBookings();
           
           if (payload.eventType === 'INSERT') {
             toast.success('Ada pesanan masuk baru!', { icon: '🔔' });
           }
+
+          // Delay fetchBookings selama 1 detik.
+          // Ini mengatasi "race condition" dimana notifikasi Realtime datang lebih cepat 
+          // sebelum database API server (PostgREST) selesai memperbarui cache bacaannya.
+          setTimeout(() => {
+            get().fetchBookings();
+          }, 1000);
         }
       )
       .subscribe();
