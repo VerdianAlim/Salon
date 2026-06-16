@@ -1,10 +1,23 @@
 import { create } from 'zustand';
-import type { Booking } from '../types';
+import type { Booking, BookingFormData, Service } from '../types';
 import { getBookings } from '../services/bookingService';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
 interface BookingStore {
+  // Wizard State (Customer)
+  currentStep: number;
+  selectedService: Service | null;
+  selectedDate: string;
+  selectedTime: string;
+  formData: Partial<BookingFormData>;
+  setStep: (step: number) => void;
+  setService: (service: Service) => void;
+  setDateTime: (date: string, time: string) => void;
+  setFormData: (data: Partial<BookingFormData>) => void;
+  resetBooking: () => void;
+
+  // Realtime State (Admin)
   bookings: Booking[];
   isLoading: boolean;
   error: string | null;
@@ -13,6 +26,43 @@ interface BookingStore {
 }
 
 export const useBookingStore = create<BookingStore>((set, get) => ({
+  // --- Wizard Initial State ---
+  currentStep: 1,
+  selectedService: null,
+  selectedDate: '',
+  selectedTime: '',
+  formData: {},
+
+  setStep: (step) => set({ currentStep: step }),
+
+  setService: (service) =>
+    set((state) => ({
+      selectedService: service,
+      formData: { ...state.formData, serviceId: service.id },
+    })),
+
+  setDateTime: (date, time) =>
+    set((state) => ({
+      selectedDate: date,
+      selectedTime: time,
+      formData: { ...state.formData, date, time },
+    })),
+
+  setFormData: (data) =>
+    set((state) => ({
+      formData: { ...state.formData, ...data },
+    })),
+
+  resetBooking: () =>
+    set({
+      currentStep: 1,
+      selectedService: null,
+      selectedDate: '',
+      selectedTime: '',
+      formData: {},
+    }),
+
+  // --- Realtime Initial State ---
   bookings: [],
   isLoading: false,
   error: null,
