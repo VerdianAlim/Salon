@@ -5,7 +5,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import type { Booking, DashboardStats } from '../../types';
-import { getBookings } from '../../services/bookingService';
+import { useBookingStore } from '../../store/bookingStore';
 import { STATUS_LABELS } from '../../utils/constants';
 import Badge from '../../components/ui/Badge';
 import type { BookingStatus } from '../../types';
@@ -38,6 +38,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, bgColor 
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { bookings, fetchBookings, setupRealtime } = useBookingStore();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
   const [weeklyData, setWeeklyData] = useState<{ name: string; booking: number }[]>([]);
@@ -45,7 +46,14 @@ const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    getBookings().then(bookings => {
+    fetchBookings().finally(() => setIsLoading(false));
+    setupRealtime();
+  }, [fetchBookings, setupRealtime]);
+
+  useEffect(() => {
+    if (isLoading && bookings.length === 0) return;
+
+
       // 1. Calculate Stats
       const today = format(new Date(), 'yyyy-MM-dd');
       const startOfCurrentWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -86,9 +94,7 @@ const Dashboard: React.FC = () => {
       setRecentBookings(bookings.slice(0, 5));
       setWeeklyData(weekData);
       setPieData(pieChartData);
-      setIsLoading(false);
-    });
-  }, []);
+  }, [bookings, isLoading]);
 
   const statCards = stats
     ? [

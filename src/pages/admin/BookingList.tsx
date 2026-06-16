@@ -10,7 +10,7 @@ import {
   createColumnHelper,
 } from '@tanstack/react-table';
 import type { Booking, BookingStatus } from '../../types';
-import { getBookings } from '../../services/bookingService';
+import { useBookingStore } from '../../store/bookingStore';
 import { STATUS_LABELS } from '../../utils/constants';
 import { formatDateShort } from '../../utils/formatDate';
 import { formatCurrency } from '../../utils/formatCurrency';
@@ -25,7 +25,7 @@ const ALL_STATUSES: BookingStatus[] = ['pending', 'confirmed', 'completed', 'can
 
 const BookingList: React.FC = () => {
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const { bookings, fetchBookings, setupRealtime } = useBookingStore();
   const [isLoading, setIsLoading] = useState(true);
   const [globalFilter, setGlobalFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -33,11 +33,9 @@ const BookingList: React.FC = () => {
   const [dateTo, setDateTo] = useState('');
 
   useEffect(() => {
-    getBookings().then(data => {
-      setBookings(data);
-      setIsLoading(false);
-    });
-  }, []);
+    fetchBookings().finally(() => setIsLoading(false));
+    setupRealtime();
+  }, [fetchBookings, setupRealtime]);
 
   const filteredData = useMemo(() => {
     return bookings.filter(b => {

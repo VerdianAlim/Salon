@@ -1,52 +1,55 @@
 import { create } from 'zustand';
-import type { BookingFormData, Service } from '../types';
+import type { Booking } from '../types';
+import { getBookings } from '../services/bookingService';
+import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
 
 interface BookingStore {
-  currentStep: number;
-  selectedService: Service | null;
-  selectedDate: string;
-  selectedTime: string;
-  formData: Partial<BookingFormData>;
-  setStep: (step: number) => void;
-  setService: (service: Service) => void;
-  setDateTime: (date: string, time: string) => void;
-  setFormData: (data: Partial<BookingFormData>) => void;
-  resetBooking: () => void;
+  bookings: Booking[];
+  isLoading: boolean;
+  error: string | null;
+  fetchBookings: () => Promise<void>;
+  setupRealtime: () => void;
 }
 
-export const useBookingStore = create<BookingStore>((set) => ({
-  currentStep: 1,
-  selectedService: null,
-  selectedDate: '',
-  selectedTime: '',
-  formData: {},
+export const useBookingStore = create<BookingStore>((set, get) => ({
+  bookings: [],
+  isLoading: false,
+  error: null,
 
-  setStep: (step) => set({ currentStep: step }),
+  fetchBookings: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await getBookings();
+      set({ bookings: data, isLoading: false });
+    } catch {
+      set({ error: 'Gagal memuat data booking', isLoading: false });
+    }
+  },
 
-  setService: (service) =>
-    set((state) => ({
-      selectedService: service,
-      formData: { ...state.formData, serviceId: service.id },
-    })),
+  setupRealtime: () => {
+    // Hindari langganan ganda jika sudah ada instance
+    const channelName = 'public:bookings';
+    const existingChannel = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`);
+    if (existingChannel) return;
 
-  setDateTime: (date, time) =>
-    set((state) => ({
-      selectedDate: date,
-      selectedTime: time,
-      formData: { ...state.formData, date, time },
-    })),
-
-  setFormData: (data) =>
-    set((state) => ({
-      formData: { ...state.formData, ...data },
-    })),
-
-  resetBooking: () =>
-    set({
-      currentStep: 1,
-      selectedService: null,
-      selectedDate: '',
-      selectedTime: '',
-      formData: {},
-    }),
+    supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings' },
+        (payload) => {
+          // Ketika ada perubahan apa pun di Supabase, kita ambil ulang datanya
+          // agar relasi (service & customer) ter-fetch utuh lewat query getBookings().
+          // Ini cara paling aman daripada menggabungkan payload partial.
+          console.log('Realtime update received:', payload);
+          get().fetchBookings();
+          
+          if (payload.eventType === 'INSERT') {
+            toast.success('Ada pesanan masuk baru!', { icon: '🔔' });
+          }
+        }
+      )
+      .subscribe();
+  },
 }));

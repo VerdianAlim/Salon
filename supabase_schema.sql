@@ -69,3 +69,8 @@ INSERT INTO public.services (name, description, price, duration, category, is_ac
 ('Smoothing', 'Meluruskan rambut ikal atau bergelombang secara permanen dengan hasil rambut yang lembut, mudah diatur, dan tampak alami.', 400000, 180, 'Hair', true),
 ('Facial Basic', 'Perawatan wajah esensial untuk membersihkan komedo, mengangkat sel kulit mati, dan mengembalikan kesegaran kulit.', 120000, 60, 'Perawatan', true),
 ('Hair Cut + Blow', 'Potongan rambut stylish oleh kapster berpengalaman, sudah termasuk cuci dan blow dry untuk tampilan maksimal.', 75000, 45, 'Hair', true);
+
+-- 5. Enable Realtime (Supabase)
+-- Ini diwajibkan agar aplikasi bisa menerima update secara otomatis (websocket)
+ALTER PUBLICATION supabase_realtime ADD TABLE bookings;
+

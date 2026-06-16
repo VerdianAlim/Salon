@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Booking } from '../../types';
+import { supabase } from '../../lib/supabase';
 import { getBookingsByPhone } from '../../services/bookingService';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatDateShort } from '../../utils/formatDate';
@@ -28,6 +29,29 @@ const BookingHistory: React.FC = () => {
     setBookings(results);
     setIsLoading(false);
   };
+
+  useEffect(() => {
+    if (!hasSearched || !phone.trim()) return;
+
+    const channel = supabase
+      .channel('customer-bookings-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings' },
+        () => {
+          // Jika ada perubahan apa pun di tabel bookings,
+          // kita ambil ulang data terbaru berdasarkan nomor HP
+          getBookingsByPhone(phone.trim()).then(results => {
+            setBookings(results);
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [hasSearched, phone]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSearch();

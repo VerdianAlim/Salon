@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { addDays, startOfWeek, format, isSameDay } from 'date-fns';
 import { id } from 'date-fns/locale';
 import type { Booking } from '../../types';
-import { getBookings } from '../../services/bookingService';
+import { useBookingStore } from '../../store/bookingStore';
 import { STATUS_LABELS } from '../../utils/constants';
 import type { BookingStatus } from '../../types';
 import Button from '../../components/ui/Button';
@@ -19,18 +19,18 @@ const STATUS_COLORS: Record<BookingStatus, string> = {
 
 const Calendar: React.FC = () => {
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const { bookings: storeBookings, fetchBookings, setupRealtime } = useBookingStore();
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
   const [isLoading, setIsLoading] = useState(true);
 
+  const bookings = storeBookings.filter(b => b.status !== 'cancelled');
+
   useEffect(() => {
-    getBookings().then(data => {
-      setBookings(data.filter(b => b.status !== 'cancelled'));
-      setIsLoading(false);
-    });
-  }, []);
+    fetchBookings().finally(() => setIsLoading(false));
+    setupRealtime();
+  }, [fetchBookings, setupRealtime]);
 
   // Generate 6 hari (Senin - Sabtu)
   const weekDays = Array.from({ length: 6 }, (_, i) => addDays(currentWeekStart, i));
