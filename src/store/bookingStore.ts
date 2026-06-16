@@ -25,7 +25,7 @@ interface BookingStore {
   setupRealtime: () => void;
 }
 
-export const useBookingStore = create<BookingStore>((set, get) => ({
+export const useBookingStore = create<BookingStore>((set) => ({
   // --- Wizard Initial State ---
   currentStep: 1,
   selectedService: null,
