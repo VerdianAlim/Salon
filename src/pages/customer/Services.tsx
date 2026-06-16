@@ -17,11 +17,16 @@ const Services: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    getServices(true).then(data => {
-      setServices(data);
-      setFiltered(data);
-      setIsLoading(false);
-    });
+    getServices(true)
+      .then(data => {
+        setServices(data);
+        setFiltered(data);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error("Gagal mengambil data layanan:", err);
+        setIsLoading(false);
+      });
   }, []);
 
   useEffect(() => {
