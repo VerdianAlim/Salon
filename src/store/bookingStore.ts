@@ -78,10 +78,12 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
   },
 
   setupRealtime: () => {
-    // Hindari langganan ganda jika sudah ada instance
+    // Hapus channel lama jika ada (penting untuk mengatasi bug Vite HMR)
     const channelName = 'public:bookings';
     const existingChannel = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`);
-    if (existingChannel) return;
+    if (existingChannel) {
+      supabase.removeChannel(existingChannel);
+    }
 
     supabase
       .channel(channelName)
@@ -91,7 +93,6 @@ export const useBookingStore = create<BookingStore>((set, get) => ({
         (payload) => {
           // Ketika ada perubahan apa pun di Supabase, kita ambil ulang datanya
           // agar relasi (service & customer) ter-fetch utuh lewat query getBookings().
-          // Ini cara paling aman daripada menggabungkan payload partial.
           console.log('Realtime update received:', payload);
           get().fetchBookings();
           
